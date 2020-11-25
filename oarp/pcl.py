@@ -87,7 +87,12 @@ class Pointcloud():
 	def partition_verts(self, splits:Union[int,tuple]=2):
 		"""Return a list of verts lists, each made by splitting the pointcloud up in 3 dimensions.
 		if splits is int, splits that many times in each dimension
-		if splits is tuple, split by splits[0] in x, splits[1] in y, etc"""
+		if splits is tuple, split by splits[0] in x, splits[1] in y, etc
+
+		returns:
+			partition: list of verts lists
+			idxs : list of idxs lists
+		"""
 
 		if isinstance(splits, int):
 			splits = (splits, splits, splits)
@@ -98,12 +103,13 @@ class Pointcloud():
 		yp = np.linspace(bbox[1,0], bbox[1,1]+1e-5, splits[1] + 2)
 		zp = np.linspace(bbox[2,0], bbox[2,1]+1e-5, splits[2] + 2)
 
-		partition = []
+		partition, idxs = [], []
 		for xi in range(splits[0] + 1):
 			for yi in range(splits[1] + 1):
 				for zi in range(splits[2] + 1):
 					p_bbox = np.array([xp[xi:xi+2], yp[yi:yi+2], zp[zi:zi+2]])
 					in_bounds = in_bbox(self.verts, p_bbox)
 					partition.append(self.verts[in_bounds])
+					idxs.append(np.argwhere(in_bounds).ravel())
 
-		return partition
+		return partition, idxs
