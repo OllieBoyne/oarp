@@ -1,42 +1,9 @@
 """Implementation of iterative closest point (ICP) algorithm in numpy"""
 from oarp.pcl import Pointcloud
 import numpy as np
-from typing import Union
 from sklearn.neighbors import NearestNeighbors
-import cv2
 
-#TODO: check how reflecting transforms are handled
-
-from time import perf_counter
-class Timer:
-	def __init__(self):
-		self.log = {}
-		self.t0 = perf_counter()
-
-	def time(self, label):
-		elapsed = perf_counter() - self.t0
-		self.log[label] = self.log.get(label, []) + [elapsed]
-		self.t0 = perf_counter()
-
-	def get_log(self):
-		print("LOG: ")
-		[print(f"{k}: {1000*np.mean(v):.2f}") for k,v in self.log.items()]
-
-
-# def _ax_sizes(pcl: Pointcloud):
-# 	"""Return (3,) size vector of size of axis in each dimension"""
-# 	bbox = pcl.bbox
-# 	return bbox[:, 1] - bbox[:, 0]
-#
-# def _rank_axes(pcl: Pointcloud):
-# 	"""Return (3,) size vector of order of x,y,z axes, from largest to smallest in pointcloud size"""
-# 	sizes = _ax_sizes(pcl)
-# 	ranks = np.arange(3)[sizes.argsort()][::-1]
-# 	return ranks
-#
-# def _bulk_align_pointclouds(src_pointcloud: Pointcloud, target_pointcloud: Pointcloud):
-# 	"""Returns the 4x4 affine transformation matrix that provides a bulk alignment of xyz 'axes' in order of size,
-# 	and translation, to provide an initial guess for ICP"""
+# TODO: check how reflecting transforms are handled
 
 
 def estimate_bulk_transform(src_pointcloud: Pointcloud, target_pointcloud: Pointcloud):
@@ -52,20 +19,20 @@ def estimate_bulk_transform(src_pointcloud: Pointcloud, target_pointcloud: Point
 
 	return T
 
-#http://resources.mpi-inf.mpg.de/deformableShapeMatching/EG2012_Tutorial/slides/1.2%20ICP_+_TPS_%28NM%29.pdf
 
-# or http://ais.informatik.uni-freiburg.de/teaching/ss12/robotics/slides/17-icp.pdf
-
-def ICP(src_pointcloud: Pointcloud, target_pointcloud: Pointcloud, T_init=None,
-		max_iter=30, tol=1e-8, nsample=1000, k=75, inplace=True):
+def ICP(src_pointcloud: Pointcloud, target_pointcloud: Pointcloud, max_iter=30, tol=1e-8,
+		nsample=1000, k=75, T_init:np.ndarray=None, inplace=True):
 	"""Identifies the affine transformation matrix T, that best aligns the unordered pointcloud
 	src_pointcloud, with the target_pointcloud.
 
-	src_pointcloud and target_pointcloud are Pointcloud objects
-	if inplace is True src_pointcloud will be transformed in place
+	:param src_pointcloud: Pointcloud to be transformed
+	:param target_pointcloud: Pointcloud to be matched to
+	:param max_iter: Loop will terminate if this many iterations have passed
+	:param tol: Loop will terminate if difference between successive mean errors are below this value
 	:param nsample: Number of veritces randomly selected for comparison each iteration
-	:param T_init: Optional initial guess for T. (4x4) np.ndarray
 	:param k: Only evaluate the k% nearest of the nearest neighbour pairs
+	:param T_init: Optional initial guess for T. (4x4) np.ndarray
+	:param inplace: Flag to transform src_pointcloud in place, or return a deepcopy
 
 	Returns dict:
 		T = 4x4 transformation matrix
@@ -82,7 +49,7 @@ def ICP(src_pointcloud: Pointcloud, target_pointcloud: Pointcloud, T_init=None,
 	nn = NearestNeighbors(n_neighbors=1, algorithm='auto',
 						  ).fit(target_verts)
 
-	pose_init = src_pointcloud.pose # get initial pose for recalculation
+	pose_init = src_pointcloud.pose  # get initial pose for recalculation
 
 	if T_init is None:
 		# make initial guess, based on PCA and centroids
@@ -96,24 +63,16 @@ def ICP(src_pointcloud: Pointcloud, target_pointcloud: Pointcloud, T_init=None,
 	n = 0
 
 	for n in range(max_iter):
-
-		# VARIANTS TO IMPLEMENT
-		# Point subsets
-		# weighted correspondences
-		# data association
-		# rejecting outliers
-		# - test with variable number of verts in src/targ
-
 		# Select sample from source mesh
 		sample = np.random.randint(0, src_pointcloud.n_verts, nsample)
 		src = src_pointcloud.verts[sample]
 
 		# identify corresponding NN on target mesh
-		dst, idxs = nn.kneighbors(src) # get idxs of nearest neighbours on source
+		dst, idxs = nn.kneighbors(src)  # get idxs of nearest neighbours on source
 		targ = target_verts[idxs.ravel()]
 
 		# reject pairs with distance > k times median
-		filt = dst.ravel() <= np.percentile(dst.ravel(), k) #k * np.median(dst.ravel())
+		filt = dst.ravel() <= np.percentile(dst.ravel(), k)  # k * np.median(dst.ravel())
 		src, targ = src[filt], targ[filt]
 
 		err = np.abs(dst).mean()
@@ -132,7 +91,7 @@ def ICP(src_pointcloud: Pointcloud, target_pointcloud: Pointcloud, T_init=None,
 		# for reflections
 		if np.linalg.det(R) < 0:
 			VT[2, :] *= -1
-			R = np.dot(VT.T, U.T)
+			R = (U @ VT).T
 
 		t = targ_centroid - (R @ src_centroid.T).T
 		T = np.eye(4)
@@ -144,6 +103,6 @@ def ICP(src_pointcloud: Pointcloud, target_pointcloud: Pointcloud, T_init=None,
 		prev_err = err
 
 	dst, idxs = nn.kneighbors(src_pointcloud.verts)  # final distances
-	res = dict(T=src_pointcloud.pose @ np.linalg.inv(pose_init), nits=n+1, err=dst.mean())
+	res = dict(T=src_pointcloud.pose @ np.linalg.inv(pose_init), nits=n + 1, err=dst.mean())
 
 	return res

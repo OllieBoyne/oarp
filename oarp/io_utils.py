@@ -1,6 +1,7 @@
 """Utils for loading and saving different filetypes"""
 import os
 
+
 class Loader:
 
 	def load(self, src):
@@ -16,6 +17,7 @@ class Loader:
 
 	def _write(self, outfile, data):
 		raise NotImplementedError
+
 
 class OBJLoader(Loader):
 
