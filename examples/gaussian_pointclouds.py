@@ -3,14 +3,17 @@
 from oarp.pcl import Pointcloud
 from oarp.icp import ICP
 from oarp.reordering import reorder
+from oarp.vis_utils import setup_axes, plot_pointcloud
 import numpy as np
+import os
 
-from matplotlib import pyplot as plt
-from oarp.vis_utils import setup_axes, plot_pointcloud, draw_arrow
+# make sure working from main dir
+if os.getcwd().endswith('examples'):
+	os.chdir('..')
 
 np.set_printoptions(precision=3, suppress=True)
 
-N = 1000
+N = 1000  # Number of verts
 
 if __name__ == "__main__":
 	pcl_1 = Pointcloud(verts=np.random.randn(N, 3))
@@ -21,7 +24,7 @@ if __name__ == "__main__":
 	order = pcl_1.order[np.lexsort((z, y, x))]
 	pcl_1.order = order
 
-	fig, axs = setup_axes(ncols=2, nrows=2, axis_opt='off', bounds=pcl_1.bbox)
+	fig, axs = setup_axes(ncols=4, nrows=1, axis_opt='off', bounds=pcl_1.bbox)
 
 	plot_pointcloud(axs[0], pcl_1),	plot_pointcloud(axs[1], pcl_2)
 
@@ -36,4 +39,6 @@ if __name__ == "__main__":
 
 	plot_pointcloud(axs[3], pcl_2)
 
-	plt.show()
+	titles = ['Pountcloud A', 'Pointcloud B', 'B aligned to A', 'B reordered to A']
+	[ax.set_title(t) for ax, t in zip(axs, titles)]
+	fig.savefig('examples/gaussian_pointclouds.png')

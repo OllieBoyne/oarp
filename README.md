@@ -2,12 +2,15 @@ OARP
 ----
 Package for **O**rdering and **A**lignment of **R**igid **P**ointclouds.
 
-This library provides tools for quickly aligning two rigid point clouds through ICP.
+![](examples/rigid_transforms.png)
 
-It also provides fast algorithms for reordering pointclouds - adjusting the vertex order of a pointcloud to minimise the per element distance to each vertex in another pointcloud. This may be useful for ordered representations of pointclouds, used in ~~remeshing schemes or graph networks~~
+This library provides tools for rigid alignment and vertex reordering in order to configure two pointclouds. These pointclouds can be, as above, from the same source mesh, with transformations applied (allowing for a perfect fit), or any two pointclouds, demonstrated below, in which case a best-fit alignment and reordering will be found.
 
-# Install
+![](examples/gaussian_pointclouds.png)
 
-Requirements:
-You can install oarp using `pip`:
-`pip install oarp`
+# Examples
+
+To run the either of the examples demonstrated in the images above, run either:
+
+- Transformed pointcloud O&A: `python examples/rigid_pointclouds.py`
+- Dissimilar pointcloud O&A: `python examples/gaussian_pointclouds.py`

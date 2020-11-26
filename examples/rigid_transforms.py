@@ -5,15 +5,17 @@ Two stage: ICP, then reordering"""
 from oarp.pcl import Pointcloud
 from oarp.icp import ICP
 from oarp.reordering import reorder
-from oarp.vis_utils import setup_axes, plot_pointcloud, draw_arrow
+from oarp.vis_utils import setup_axes, plot_pointcloud
 import numpy as np
 from time import perf_counter
-from matplotlib import pyplot as plt
+import os
+
+# make sure working from main dir
+if os.getcwd().endswith('examples'):
+	os.chdir('..')
 
 np.set_printoptions(precision=3, suppress=True)
-
-obj_src = 'meshes/bunny_LP.obj'
-# obj_src_1 = 'meshes/cactus.obj'
+obj_src = 'meshes/stanford_bunny_lp.obj'
 
 if __name__ == "__main__":
 	pcl_1 = Pointcloud.load_from_obj(obj_src)
@@ -29,16 +31,16 @@ if __name__ == "__main__":
 	pcl_2 = pcl_1.copy()
 
 	# apply transform
-	T = np.array([	[0, -1, 0, 1.2],
-					[1, 0, 0, 0],
-					[0, 0, 1, 0],
+	T = np.array([	[0, -1, 0, 0.],
+					[1, 0, 0, 0.],
+					[0, 0, 1, -1.],
 					[0, 0, 0, 1]	])
 
 	pcl_2.transform(T)
 	pcl_2.randomise()  # add in to test reordering
 
 	d = 0.5
-	fig, axs = setup_axes(ncols=2, nrows=2, axis_opt='off', bounds=pcl_1.bbox)
+	fig, axs = setup_axes(ncols=4, axis_opt='off', bounds=pcl_1.bbox)
 
 	plot_pointcloud(axs[0], pcl_1)
 	plot_pointcloud(axs[1], pcl_2)
@@ -62,8 +64,6 @@ if __name__ == "__main__":
 
 	plot_pointcloud(axs[3], pcl_2)
 
-	draw_arrow(axs[0], axs[1], (1., 0.5), (0., 0.5), text='Translate, rotate, shuffle')
-	draw_arrow(axs[1], axs[2], (0, 0.), (1., 1.), text='Realign')
-	draw_arrow(axs[2], axs[3], (1., 0.5), (0., 0.5), text='Reorder')
-
-	plt.show()
+	titles = ['Original', 'Transformed & shuffled', 'Realigned', 'Reordered']
+	[ax.set_title(t) for ax, t in zip(axs, titles)]
+	fig.savefig('examples/rigid_transforms.png')
