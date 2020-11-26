@@ -10,6 +10,8 @@ import numpy as np
 from time import perf_counter
 import os
 
+from matplotlib import pyplot as plt
+
 # make sure working from main dir
 if os.getcwd().endswith('examples'):
 	os.chdir('..')
@@ -21,26 +23,21 @@ if __name__ == "__main__":
 	pcl_1 = Pointcloud.load_from_obj(obj_src)
 	print(f"LOADED MESH: {obj_src} [{pcl_1.n_verts} verts]")
 
-	# Set up ORDER of pointcloud 1 to be by y, then by x, then z for clear visualisation
+	# Set up ORDER of pointcloud 1 to be x, then z, then y for clear visualisation
 	x, y, z = pcl_1.verts.T
-
-	order = pcl_1.order[np.lexsort((z, y, x))]
+	order = pcl_1.order[np.lexsort((y, z, x))]
 	pcl_1.order = order
 
-	# Generate second pointcloud, with transformations applied, and indices reordered
+	# Copy pointcloud
 	pcl_2 = pcl_1.copy()
 
-	# apply transform
-	T = np.array([	[0, -1, 0, 0.],
-					[1, 0, 0, 0.],
-					[0, 0, 1, -1.],
-					[0, 0, 0, 1]	])
+	# apply desired transforms - rotate, shift, and reorder
+	pcl_2.rotate_about_axis(0.5, 'z')
+	pcl_2.rotate_about_axis(0.5, 'y')
+	pcl_2.shift_in(-0.6, 'y')
+	pcl_2.randomise()
 
-	pcl_2.transform(T)
-	pcl_2.randomise()  # add in to test reordering
-
-	d = 0.5
-	fig, axs = setup_axes(ncols=4, axis_opt='off', bounds=pcl_1.bbox)
+	fig, axs = setup_axes(ncols=4, axis_opt='off', bounds=pcl_1.bbox, elev=25, azim=60)
 
 	plot_pointcloud(axs[0], pcl_1)
 	plot_pointcloud(axs[1], pcl_2)
@@ -48,14 +45,14 @@ if __name__ == "__main__":
 	# First, perform ICP to align pcl_2 with pcl_1
 
 	start_time = perf_counter()
-	res = ICP(pcl_2, pcl_1, max_iter=10, nsample=100, k=75)
+	res = ICP(pcl_2, pcl_1, max_iter=20, nsample=100, k=75)
 	print('ICP... ', f"Time: {(perf_counter() - start_time) * 1000:.2f}ms | Num its: {res['nits']} | Error : {np.format_float_scientific(res['err'], 3)}")
 
 	plot_pointcloud(axs[2], pcl_2)
 
 	# then, perform reordering to align vertex order
 	start_time = perf_counter()
-	reres = reorder(pcl_2, pcl_1, neighbours=10)
+	reres = reorder(pcl_2, pcl_1, neighbours=20)
 	print(f"Reorder... Time: {(perf_counter() - start_time) * 1000:.2f}ms")
 
 	# Prove that all verts and vertex order are identical

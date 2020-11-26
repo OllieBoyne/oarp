@@ -14,3 +14,14 @@ To run the either of the examples demonstrated in the images above, run either:
 
 - Transformed pointcloud O&A: `python examples/rigid_pointclouds.py`
 - Dissimilar pointcloud O&A: `python examples/gaussian_pointclouds.py`
+
+# Implementation
+
+All implementations are in numpy and scipy.
+
+Alignment is completed via Principal Component Analysis (PCA) and Iterative Closest Point (ICP). 
+
+PCA provides an initial estimate for the rigid transformation between two pointclouds (highly accurate if these are from the same source), and ICP iteratively refines this estimate. 
+
+
+## Acknowledgements

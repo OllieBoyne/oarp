@@ -5,16 +5,20 @@ from sklearn.decomposition import PCA
 import copy
 from typing import Union
 
+
 def apply_transform(verts, T):
 	"""Apply 4x4 transformation matrix to verts"""
 	v = np.pad(verts, ((0, 0), (0, 1)), constant_values=1)
 	return (v @ T.T)[..., :3]
 
+
 def in_bbox(V, bbox):
 	"""Returns a boolean array of shape V = (..., 3), corresponding to whether each point in V
 	is within the (3, 2) bbox """
-	x,y,z = V[..., 0], V[..., 1], V[..., 2]
-	return (bbox[0,0]<=x) & (x<bbox[0,1]) & (bbox[1,0]<=y) & (y<bbox[1,1]) & (bbox[2,0]<=z) & (z<bbox[2,1])
+	x, y, z = V[..., 0], V[..., 1], V[..., 2]
+	return (bbox[0, 0] <= x) & (x < bbox[0, 1]) & (bbox[1, 0] <= y) & (y < bbox[1, 1]) & (bbox[2, 0] <= z) & (
+				z < bbox[2, 1])
+
 
 class Pointcloud():
 	def __init__(self, verts: np.ndarray):
@@ -44,17 +48,42 @@ class Pointcloud():
 
 	@property
 	def verts_padded(self):
-		return np.pad(self.verts, ((0,0),(0,1)), constant_values=1)
+		return np.pad(self.verts, ((0, 0), (0, 1)), constant_values=1)
 
-	def transform(self, T):
+	def transform(self, T: np.ndarray):
+		"""Apply rigid transformation T to current pose.
+		:param T: 4x4 np.ndarray, depciting [R|t], where R is a translation matrix, and t a translation"""
+
+		if not np.isclose(np.linalg.det(T[:3, :3]), 1, atol=1e-5):
+			raise ValueError("The top left 3x3 matrix of T must represent purely a rotation matrix.")
+
 		self.pose = T @ self.pose
+
+	def rotate_about_axis(self, angle: float, axis='x'):
+		"""Apply rigid rotation to current pose.
+		:param angle: Rotation in radians
+		:param axis: Letter corresponding to axis of rotation, x, y or z"""
+		T = np.eye(4)
+		rot_2d = np.array([[np.cos(angle), -np.sin(angle)], [np.sin(angle), np.cos(angle)]])
+		idxs = [[1, 2], [0, 2], [0, 1]]['xyz'.index(axis)]
+		T[np.ix_(idxs, idxs)] = rot_2d
+		self.transform(T)
+
+	def shift_in(self, shift: float, axis='x'):
+		"""Apply shift to current pose
+		:param shift: Float to shift
+		:param axis: Axis to shift in, x, y, z
+		"""
+		T = np.eye(4)
+		T['xyz'.index(axis), -1] = shift
+		self.transform(T)
 
 	@staticmethod
 	def load_from_obj(src):
 		loader = OBJLoader()
 
 		verts, faces = loader.load(src)
-		pcl = Pointcloud(verts = np.array(verts))
+		pcl = Pointcloud(verts=np.array(verts))
 		return pcl
 
 	def randomise(self):
@@ -84,7 +113,7 @@ class Pointcloud():
 
 		return pca
 
-	def partition_verts(self, splits:Union[int,tuple]=2):
+	def partition_verts(self, splits: Union[int, tuple] = 2):
 		"""Return a list of verts lists, each made by splitting the pointcloud up in 3 dimensions.
 		if splits is int, splits that many times in each dimension
 		if splits is tuple, split by splits[0] in x, splits[1] in y, etc
@@ -99,15 +128,15 @@ class Pointcloud():
 
 		# calculate partition lines in each dimension
 		bbox = self.bbox
-		xp = np.linspace(bbox[0,0], bbox[0,1]+1e-5, splits[0] + 2)
-		yp = np.linspace(bbox[1,0], bbox[1,1]+1e-5, splits[1] + 2)
-		zp = np.linspace(bbox[2,0], bbox[2,1]+1e-5, splits[2] + 2)
+		xp = np.linspace(bbox[0, 0], bbox[0, 1] + 1e-5, splits[0] + 2)
+		yp = np.linspace(bbox[1, 0], bbox[1, 1] + 1e-5, splits[1] + 2)
+		zp = np.linspace(bbox[2, 0], bbox[2, 1] + 1e-5, splits[2] + 2)
 
 		partition, idxs = [], []
 		for xi in range(splits[0] + 1):
 			for yi in range(splits[1] + 1):
 				for zi in range(splits[2] + 1):
-					p_bbox = np.array([xp[xi:xi+2], yp[yi:yi+2], zp[zi:zi+2]])
+					p_bbox = np.array([xp[xi:xi + 2], yp[yi:yi + 2], zp[zi:zi + 2]])
 					in_bounds = in_bbox(self.verts, p_bbox)
 					partition.append(self.verts[in_bounds])
 					idxs.append(np.argwhere(in_bounds).ravel())

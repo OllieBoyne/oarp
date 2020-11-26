@@ -14,12 +14,15 @@ if os.getcwd().endswith('examples'):
 np.set_printoptions(precision=3, suppress=True)
 
 N = 1000  # Number of verts
+pcl_size = 5.  # size of points in scatter
 
 if __name__ == "__main__":
 
 	# Gaussian pointclouds, with pcl 1's major axis in x, pcl 2's in y
 
+	np.random.seed(0)
 	verts_1 = np.random.randn(N, 3)
+	np.random.seed(1)
 	verts_2 = np.random.randn(N, 3)
 	verts_1[..., [1,2]] *= 0.5
 	verts_2[..., [0,2]] *= 0.5
@@ -34,18 +37,18 @@ if __name__ == "__main__":
 
 	fig, axs = setup_axes(ncols=4, nrows=1, axis_opt='off', bounds=(-2., 2.))
 
-	plot_pointcloud(axs[0], pcl_1),	plot_pointcloud(axs[1], pcl_2)
+	plot_pointcloud(axs[0], pcl_1, s=pcl_size),	plot_pointcloud(axs[1], pcl_2, s=pcl_size)
 
 	# Apply ICP and replot
 	res = ICP(pcl_2, pcl_1, max_iter=10, nsample=100, k=75)
-	plot_pointcloud(axs[2], pcl_2)
+	plot_pointcloud(axs[2], pcl_2, s=pcl_size)
 
 	# then, perform reordering to align vertex order
 	# Note: Here, neighbour selection is turned off. This comes at a cost to performance,
 	# but might be necessary for random pointclouds, as limiting to nearest neighbours might remove feasible solutions
 	reres = reorder(pcl_2, pcl_1, neighbours=None)
 
-	plot_pointcloud(axs[3], pcl_2)
+	plot_pointcloud(axs[3], pcl_2, s=pcl_size)
 
 	titles = ['Pountcloud A', 'Pointcloud B', 'B aligned to A', 'B reordered to A']
 	[ax.set_title(t) for ax, t in zip(axs, titles)]

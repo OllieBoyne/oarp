@@ -7,7 +7,7 @@ from matplotlib.patches import ConnectionPatch
 
 title_font = {'family': 'serif', 'serif': ['Arial'], 'weight': 'bold', 'size': 22}
 mpl.rc('font', **title_font)
-default_cmap = 'cividis'
+default_cmap = 'winter'  # good alternative: 'cividis'
 
 
 def setup_axes(ncols=1, nrows=1, axis_opt='off', bounds: Union[float, int, tuple, np.ndarray] = 1,
@@ -60,13 +60,14 @@ def setup_axes(ncols=1, nrows=1, axis_opt='off', bounds: Union[float, int, tuple
 
 	return fig, axs
 
-def plot_pointcloud(ax, pcl, alpha=1., c=None, cmap=default_cmap):
+
+def plot_pointcloud(ax, pcl, alpha=1., c=None, cmap=default_cmap, s=1.5):
 	"""Note - 'z' axis on graph maps the y coordinate here, and 'y' maps the z coordinate, to be consistent
 	with the .obj file format"""
 	if c is None:
 		c = np.arange(pcl.n_verts)  # by default, colour based on order
 
-	ax.scatter(*pcl.verts[:, [0, 2, 1]].T, c=c, alpha=alpha, cmap=cmap)  # plot x, z, y
+	ax.scatter(*pcl.verts[:, [0, 2, 1]].T, c=c, alpha=alpha, cmap=cmap, s=s)  # plot x, z, y
 
 
 def draw_arrow(ax1, ax2, xy1=(0, 0), xy2=(0, 0), text=None):
