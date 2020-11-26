@@ -16,15 +16,23 @@ np.set_printoptions(precision=3, suppress=True)
 N = 1000  # Number of verts
 
 if __name__ == "__main__":
-	pcl_1 = Pointcloud(verts=np.random.randn(N, 3))
-	pcl_2 = Pointcloud(verts=np.random.randn(N, 3))
+
+	# Gaussian pointclouds, with pcl 1's major axis in x, pcl 2's in y
+
+	verts_1 = np.random.randn(N, 3)
+	verts_2 = np.random.randn(N, 3)
+	verts_1[..., [1,2]] *= 0.5
+	verts_2[..., [0,2]] *= 0.5
+
+	pcl_1 = Pointcloud(verts=verts_1)
+	pcl_2 = Pointcloud(verts=verts_2)
 
 	# Set up ORDER of pointcloud 1 to be by y, then by x, then z for clear visualisation
 	x, y, z = pcl_1.verts.T
 	order = pcl_1.order[np.lexsort((z, y, x))]
 	pcl_1.order = order
 
-	fig, axs = setup_axes(ncols=4, nrows=1, axis_opt='off', bounds=pcl_1.bbox)
+	fig, axs = setup_axes(ncols=4, nrows=1, axis_opt='off', bounds=(-2., 2.))
 
 	plot_pointcloud(axs[0], pcl_1),	plot_pointcloud(axs[1], pcl_2)
 
