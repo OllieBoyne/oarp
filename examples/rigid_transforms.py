@@ -3,14 +3,10 @@
 Two stage: ICP, then reordering"""
 
 from oarp.pcl import Pointcloud
-from oarp.icp import ICP
-from oarp.reordering import reorder
 from oarp.vis_utils import setup_axes, plot_pointcloud
 import numpy as np
 from time import perf_counter
 import os
-
-from matplotlib import pyplot as plt
 
 # make sure working from main dir
 if os.getcwd().endswith('examples'):
@@ -19,47 +15,59 @@ if os.getcwd().endswith('examples'):
 np.set_printoptions(precision=3, suppress=True)
 obj_src = 'meshes/stanford_bunny_lp.obj'
 
+
 if __name__ == "__main__":
-	pcl_1 = Pointcloud.load_from_obj(obj_src)
-	print(f"LOADED MESH: {obj_src} [{pcl_1.n_verts} verts]")
+	pcl_orig = Pointcloud.load_from_obj(obj_src)
+	print(f"LOADED MESH: {obj_src} [{pcl_orig.n_verts} verts]")
 
 	# Set up ORDER of pointcloud 1 to be x, then z, then y for clear visualisation
-	x, y, z = pcl_1.verts.T
-	order = pcl_1.order[np.lexsort((y, z, x))]
-	pcl_1.order = order
+	x, y, z = pcl_orig.verts.T
+	order = pcl_orig.order[np.lexsort((y, z, x))]
+	pcl_orig.order = order
 
 	# Copy pointcloud
-	pcl_2 = pcl_1.copy()
+	pcl_transformed = pcl_orig.copy()
 
 	# apply desired transforms - rotate, shift, and reorder
-	pcl_2.rotate_about_axis(0.5, 'z')
-	pcl_2.rotate_about_axis(0.5, 'y')
-	pcl_2.shift_in(-0.6, 'y')
-	pcl_2.randomise()
+	pcl_transformed.rotate_about_axis(0.5, 'z')
+	pcl_transformed.rotate_about_axis(0.5, 'y')
+	pcl_transformed.rotate_about_axis(0.5, 'x')
+	pcl_transformed.shift_in(-0.6, 'y')
+	pcl_transformed.randomise()
 
-	fig, axs = setup_axes(ncols=4, axis_opt='off', bounds=pcl_1.bbox, elev=25, azim=60)
+	# Set up plot of two pointclouds
+	fig, axs = setup_axes(ncols=4, axis_opt='off', bounds=pcl_orig.bbox, elev=25, azim=60)
+	plot_pointcloud(axs[0], pcl_orig)
+	plot_pointcloud(axs[1], pcl_transformed)
 
-	plot_pointcloud(axs[0], pcl_1)
-	plot_pointcloud(axs[1], pcl_2)
-
-	# First, perform ICP to align pcl_2 with pcl_1
-
+	## ALIGNMENT OF PCL_TRANSFORMED -> PCL_ALIGN
+	# First, try pure PCA
 	start_time = perf_counter()
-	res = ICP(pcl_2, pcl_1, max_iter=20, nsample=100, k=75)
-	print('ICP... ', f"Time: {(perf_counter() - start_time) * 1000:.2f}ms | Num its: {res['nits']} | Error : {np.format_float_scientific(res['err'], 3)}")
+	pca_fit = pcl_transformed.pca_align(pcl_orig)
+	_, pca_fit = pca_fit['pcl'], pca_fit['meta']  # get data from ICP results
+	print(f"PCA...  Time: {(perf_counter() - start_time) * 1000:.2f}ms | Error : {np.format_float_scientific(pca_fit['dst'], 3)}")
 
-	plot_pointcloud(axs[2], pcl_2)
-
-	# then, perform reordering to align vertex order
+	# Next, perform pure ICP (no initial guess)
 	start_time = perf_counter()
-	reres = reorder(pcl_2, pcl_1, neighbours=20)
+	icp_fit = pcl_transformed.icp_align(pcl_orig, max_iter=100, nsample=100, k=95, T_init=np.eye(4))
+	pcl_realigned, icp_meta = icp_fit['pcl'], icp_fit['meta'] # get data from ICP results
+	print('ICP... ', f"Time: {(perf_counter() - start_time) * 1000:.2f}ms | Num its: {icp_meta['nits']} | Error : {np.format_float_scientific(icp_meta['dst'], 3)}")
+
+	# PCA runs faster, but ICP converges slightly more accurately. Take ICP result as the aligned pointcloud
+	plot_pointcloud(axs[2], pcl_realigned)
+
+	# Then, perform reordering to align vertex order
+	start_time = perf_counter()
+	reorder_res = pcl_realigned.reorder(pcl_orig, neighbours=20)
+	pcl_reordered, reorder_meta = reorder_res['pcl'], reorder_res['meta']
 	print(f"Reorder... Time: {(perf_counter() - start_time) * 1000:.2f}ms")
 
-	# Prove that all verts and vertex order are identical
-	print(f"Vertices match: {np.allclose(pcl_1.verts, pcl_2.verts)}")
-	print(f"Vertex order matches: {np.allclose(pcl_1.order, pcl_2.order)}")
 
-	plot_pointcloud(axs[3], pcl_2)
+	# Prove that all vertsicesand vertex order are identical
+	print(f"Vertices match: {np.allclose(pcl_orig.verts, pcl_reordered.verts)}")
+	print(f"Vertex order matches: {np.allclose(pcl_orig.order, pcl_reordered.order)}")
+
+	plot_pointcloud(axs[3], pcl_reordered)
 
 	titles = ['Original', 'Transformed & shuffled', 'Realigned', 'Reordered']
 	[ax.set_title(t) for ax, t in zip(axs, titles)]

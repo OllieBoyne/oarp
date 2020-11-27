@@ -1,12 +1,15 @@
 """Functionality for reordering pointclouds"""
-from oarp.pcl import Pointcloud
+from __future__ import annotations
 import numpy as np
 from typing import Union
 from sklearn.neighbors import NearestNeighbors
-
 from scipy.optimize import linear_sum_assignment  # for reorganising pointclouds
-
 from itertools import chain
+
+# import Pointcloud for type hinting
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+	from oarp.pcl import Pointcloud
 
 flatten = lambda l: list(chain.from_iterable(l))
 
@@ -52,4 +55,4 @@ def reorder(A: Pointcloud, B: Pointcloud, inplace=True, neighbours=10):
 	order = C
 	A.order = order
 
-	return dict(order=C)
+	return dict(pcl=A, order=C)

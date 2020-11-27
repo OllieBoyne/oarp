@@ -5,6 +5,9 @@ from sklearn.decomposition import PCA
 import copy
 from typing import Union
 
+from oarp.alignment import get_pca_transform, ICP, get_nn_dist
+from oarp.ordering import reorder
+
 
 def apply_transform(verts, T):
 	"""Apply 4x4 transformation matrix to verts"""
@@ -19,6 +22,15 @@ def in_bbox(V, bbox):
 	return (bbox[0, 0] <= x) & (x < bbox[0, 1]) & (bbox[1, 0] <= y) & (y < bbox[1, 1]) & (bbox[2, 0] <= z) & (
 				z < bbox[2, 1])
 
+
+def optional_inplace(func):
+	"""Wrapper that acts on Pointcloud methods, feeding forward a copy of the Pointcloud to the function
+	in place of self if the kwarg inplace=False is supplied"""
+	def wrapper(self, *args, **kwargs):
+		if not kwargs.get('inplace', True):
+			self = self.copy()
+		return func(self, *args, **kwargs)
+	return wrapper
 
 class Pointcloud():
 	def __init__(self, verts: np.ndarray):
@@ -81,7 +93,6 @@ class Pointcloud():
 	@staticmethod
 	def load_from_obj(src):
 		loader = OBJLoader()
-
 		verts, faces = loader.load(src)
 		pcl = Pointcloud(verts=np.array(verts))
 		return pcl
@@ -110,7 +121,6 @@ class Pointcloud():
 
 		# to ensure cyclic set, force vec 3 to be the cross product of the first 2
 		pca[2] = np.cross(pca[0], pca[1])
-
 		return pca
 
 	def partition_verts(self, splits: Union[int, tuple] = 2):
@@ -142,3 +152,73 @@ class Pointcloud():
 					idxs.append(np.argwhere(in_bounds).ravel())
 
 		return partition, idxs
+
+	def nn_dist(self, target: 'Pointcloud'):
+		"""Get mean nearest neighbour distance between every point all points on self, and nearest neighbouring
+		points on target"""
+		return get_nn_dist(self, target)
+
+	@optional_inplace
+	def pca_align(self, target: 'Pointcloud', *, inplace=False):
+		"""Return a Pointcloud transformed to best match the target pointcloud via PCA alignment,
+		along with the transformation matrix itself T
+		:param target: Pointcloud to be matched to
+		:param inplace: Flag to overwrite self, rather than returning a new transformed Pointcloud instance
+
+		:return dict:
+			pcl: New pointcloud instance
+			T: (4x4) transformation matrix
+			meta: Information about fit
+		"""
+		# get & apply transform
+		T = get_pca_transform(self, target)
+		self.transform(T)
+
+		# calculate error
+		meta = dict(dst=self.nn_dist(target))
+
+		return dict(pcl=self, T=T, meta=meta)
+
+	@optional_inplace
+	def icp_align(self, target: 'Pointcloud', *, inplace=False, **icp_kwargs):
+		"""Return a Pointcloud transformed to best match the target pointcloud via PCA alignment,
+		along with the transformation matrix itself T
+		:param target: Pointcloud to be matched to
+		:param inplace: Flag to overwrite self, rather than returning a new transformed Pointcloud instance
+
+		See function ICP in oarp/alignment.py for all icp_kwargs
+
+		:return dict:
+			pcl: New pointcloud instance
+			T: (4x4) transformation matrix
+			meta: Information about fit
+		"""
+
+		# get & apply transform
+		icp_res = ICP(self, target, inplace=True, **icp_kwargs)
+		T = icp_res['T']
+
+		# calculate error
+		meta = dict(dst=self.nn_dist(target), nits=icp_res['nits'])
+		return dict(pcl=self, T=T, meta=meta)
+
+	@optional_inplace
+	def reorder(self, target: 'Pointcloud', *, inplace=False, neighbours=10):
+		"""Modifies the order of Pointcloud A such that the elementwise distance between the two pointclouds is
+		minimised.
+
+		:param target: Pointcloud to be matched to
+		:param inplace: Flag to overwrite self, rather than returning a new transformed Pointcloud instance
+		:param neighbours: Number of nearest neighbours to consider for options. Set None to consider all vertices as potential
+		pairings (warning: will significantly increase runtime speed)
+
+		:return dict:
+			pcl: New pointcloud instance
+			order: New pointcloud ordering
+			meta: Information about reordering
+		"""
+
+		reorder_res = reorder(self, target, inplace=True, neighbours=neighbours)
+		meta = dict(dst=self.nn_dist(target))
+
+		return dict(pcl=self, order=reorder_res['order'], meta=meta)

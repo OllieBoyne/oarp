@@ -1,12 +1,24 @@
 """Implementation of iterative closest point (ICP) algorithm in numpy"""
-from oarp.pcl import Pointcloud
+from __future__ import annotations
 import numpy as np
 from sklearn.neighbors import NearestNeighbors
 
 # TODO: check how reflecting transforms are handled
 
+# import Pointcloud for type hinting
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+	from oarp.pcl import Pointcloud
 
-def estimate_bulk_transform(src_pointcloud: Pointcloud, target_pointcloud: Pointcloud):
+
+def get_nn_dist(src_pointcloud: Pointcloud, target_pointcloud: Pointcloud):
+	"""Returns mean distance between nearest neighbours in two pointclouds"""
+	nn = NearestNeighbors(n_neighbors=1, algorithm='auto').fit(target_pointcloud.verts)
+	dst, idxs = nn.kneighbors(src_pointcloud.verts)
+	return dst.mean()
+
+
+def get_pca_transform(src_pointcloud: Pointcloud, target_pointcloud: Pointcloud):
 	"""Using principal axes and centroids, identify the affine matrix T (4x4) that translates the axes
 	of src_pointcloud to match that of target_pointcloud"""
 
@@ -21,7 +33,7 @@ def estimate_bulk_transform(src_pointcloud: Pointcloud, target_pointcloud: Point
 
 
 def ICP(src_pointcloud: Pointcloud, target_pointcloud: Pointcloud, max_iter=30, tol=1e-8,
-		nsample=1000, k=75, T_init:np.ndarray=None, inplace=True):
+		nsample=1000, k=90, T_init:np.ndarray=None, inplace=False):
 	"""Identifies the affine transformation matrix T, that best aligns the unordered pointcloud
 	src_pointcloud, with the target_pointcloud.
 
@@ -52,8 +64,8 @@ def ICP(src_pointcloud: Pointcloud, target_pointcloud: Pointcloud, max_iter=30, 
 	pose_init = src_pointcloud.pose  # get initial pose for recalculation
 
 	if T_init is None:
-		# make initial guess, based on PCA and centroids
-		T = estimate_bulk_transform(src_pointcloud, target_pointcloud)
+		# No initial guess supplied
+		T = np.eye(4)
 	else:
 		T = np.array(T_init)
 
