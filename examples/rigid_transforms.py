@@ -36,7 +36,8 @@ if __name__ == "__main__":
 	pcl_transformed.randomise()
 
 	# Set up plot of two pointclouds
-	fig, axs = setup_axes(ncols=4, axis_opt='off', bounds=pcl_orig.bbox, elev=25, azim=60)
+	bounds = (pcl_orig.bbox[:, 0].min(), pcl_orig.bbox[:, 1].max())
+	fig, axs = setup_axes(ncols=4, axis_opt='off', bounds=bounds, elev=25, azim=60)
 	plot_pointcloud(axs[0], pcl_orig)
 	plot_pointcloud(axs[1], pcl_transformed)
 
@@ -56,9 +57,10 @@ if __name__ == "__main__":
 	# PCA runs faster, but ICP converges slightly more accurately. Take ICP result as the aligned pointcloud
 	plot_pointcloud(axs[2], pcl_realigned)
 
-	# Then, perform reordering to align vertex order
+	# Then, perform reordering to align vertex order. Here, we know the meshes are identical,
+	# so can set neighbours = 1 for fast fitting.
 	start_time = perf_counter()
-	reorder_res = pcl_realigned.reorder(pcl_orig, neighbours=20)
+	reorder_res = pcl_realigned.reorder(pcl_orig, neighbours=1)
 	pcl_reordered, reorder_meta = reorder_res['pcl'], reorder_res['meta']
 	print(f"Reorder... Time: {(perf_counter() - start_time) * 1000:.2f}ms")
 
