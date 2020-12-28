@@ -21,4 +21,8 @@ All implementations are in numpy and scipy.
 
 Alignment is completed via Principal Component Analysis (PCA) and Iterative Closest Point (ICP). 
 
-PCA provides an initial estimate for the rigid transformation between two pointclouds (highly accurate if these are from the same source), and ICP iteratively refines this estimate. 
+PCA provides an initial estimate for the rigid transformation between two pointclouds (highly accurate if these are from the same source), and ICP iteratively refines this estimate.
+
+Ordering is provided either by ```scipy.optimize.linear_sum_assignment```, or by the Auction Algorithm provided in [sslap](https://github.com/OllieBoyne/sslap). The Auction Algorithm will work faster on larger pointclouds.
+
+To use sslap, simply install it as a module by following the instructions on the repository.

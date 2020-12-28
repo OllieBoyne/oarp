@@ -58,8 +58,7 @@ def ICP(src_pointcloud: Pointcloud, target_pointcloud: Pointcloud, max_iter=30, 
 		src_pointcloud = src_pointcloud.copy()
 
 	target_verts = target_pointcloud.verts
-	nn = NearestNeighbors(n_neighbors=1, algorithm='auto',
-						  ).fit(target_verts)
+	nn = NearestNeighbors(n_neighbors=1, algorithm='auto').fit(target_verts)
 
 	pose_init = src_pointcloud.pose  # get initial pose for recalculation
 

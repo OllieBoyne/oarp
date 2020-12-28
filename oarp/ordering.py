@@ -6,12 +6,30 @@ from sklearn.neighbors import NearestNeighbors
 from scipy.optimize import linear_sum_assignment  # for reorganising pointclouds
 from itertools import chain
 
+try:
+	from sslap.auction import from_matrix
+	use_sslap = True
+except ImportError:
+	use_sslap = False
+
 # import Pointcloud for type hinting
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
 	from oarp.pcl import Pointcloud
 
 flatten = lambda l: list(chain.from_iterable(l))
+
+
+def solve_lap(mat):
+	"""Solve Linear Assignment Problem"""
+	if use_sslap: # use sslap auction algorithm implementation
+		mat[mat == np.inf] = -1
+		solver = from_matrix(mat, problem='min')
+		sol = solver.solve()
+	else:
+		R, sol = linear_sum_assignment(cost_matrix=mat)
+
+	return sol
 
 
 def reorder(A: Pointcloud, B: Pointcloud, inplace=True, neighbours=10):
@@ -43,21 +61,28 @@ def reorder(A: Pointcloud, B: Pointcloud, inplace=True, neighbours=10):
 			cost_mat = np.linalg.norm(A.verts[None, :] - B.verts[:, None], axis=-1)
 
 		else:
-			nn = NearestNeighbors(n_neighbors=neighbours, algorithm='auto').fit(B.verts)
-
-			dst, B_idxs = nn.kneighbors(A.verts)  # get dist, indices in terms of B
-
 			num_A = A.n_verts
 			num_B = B.n_verts
 			cost_mat = np.full((num_B, num_A), fill_value=np.inf)  # mat of all in A -> all neighbours in B
 
+			# To ensure matrix is feasible, must consider nearest neighbours for B,
+			nn = NearestNeighbors(n_neighbors=neighbours, algorithm='auto').fit(B.verts)
+			dst_B, B_idxs = nn.kneighbors(A.verts)  # get dist, indices in terms of B
+
+			# but also nearest neighbours for A (to ensure that every vertex in both pointclouds maps to at least one other
+			nn = NearestNeighbors(n_neighbors=neighbours, algorithm='auto').fit(A.verts)
+			dst_A, A_idxs = nn.kneighbors(B.verts)  # get dist, indices in terms of B
+
 			# Set all nearest neighbour values to their distance
 			# convert idxs - vertex indices for B, to flat_inds - indices for distances in a flattened version of cost_matrix
 			flat_inds = (num_A * B_idxs + np.arange(num_A)[:, None])
-			np.put(cost_mat, flat_inds, dst)
+			np.put(cost_mat, flat_inds, dst_B)
+
+			flat_inds = (A_idxs + num_A * np.arange(num_A)[:, None])
+			np.put(cost_mat, flat_inds, dst_A)
 
 		try:
-			R, C = linear_sum_assignment(cost_matrix=cost_mat)
+			C = solve_lap(cost_mat)
 		except ValueError:
 			raise ValueError(
 				"Cost matrix is infeasible. This might be due to the choice of the variable 'neighbour'.\nTry increasing it, or turn neighbour selection off by setting it to None.")

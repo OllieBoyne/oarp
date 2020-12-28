@@ -4,6 +4,7 @@ from oarp.pcl import Pointcloud
 from oarp.vis_utils import setup_axes, plot_pointcloud
 import numpy as np
 import os
+from time import perf_counter
 
 # make sure working from main dir
 if os.getcwd().endswith('examples'):
@@ -37,13 +38,18 @@ if __name__ == "__main__":
 	plot_pointcloud(axs[0], pcl_A, s=pcl_size), plot_pointcloud(axs[1], pcl_B, s=pcl_size)
 
 	# Apply ICP and replot
+	start_time = perf_counter()
 	pcl_B_aligned = pcl_B.icp_align(pcl_A, max_iter=10, nsample=100, k=75)['pcl']
+	print(f"Alignment... Time: {(perf_counter() - start_time) * 1000:.2f}ms")
 	plot_pointcloud(axs[2], pcl_B_aligned, s=pcl_size)
 
 	# then, perform reordering to align vertex order
-	# Note: Here, neighbour selection is turned off. This comes at a cost to performance,
-	# but might be necessary for random pointclouds, as limiting to nearest neighbours might remove feasible solutions
-	pcl_B_reordered = pcl_B_aligned.reorder(pcl_A, neighbours=None)['pcl']
+	# Note: Here, neighbour selection is set quite high (100).
+	# This is necessary for random pointclouds to avoid infeasible solutions.
+	# Try reducing this value to see where it fails
+	start_time = perf_counter()
+	pcl_B_reordered = pcl_B_aligned.reorder(pcl_A, neighbours=100)['pcl']
+	print(f"Reorder... Time: {(perf_counter() - start_time) * 1000:.2f}ms")
 
 	plot_pointcloud(axs[3], pcl_B_reordered, s=pcl_size)
 
