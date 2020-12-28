@@ -61,7 +61,7 @@ if __name__ == "__main__":
 	# Here, we know the meshes are identical, so we could set neighbours = 1 for super fast fitting
 	# Using neighbours = 10 to show the speed of the linear assignment algorithm
 	start_time = perf_counter()
-	reorder_res = pcl_realigned.reorder(pcl_orig, neighbours=5)
+	reorder_res = pcl_realigned.reorder(pcl_orig, neighbours=10)
 	pcl_reordered, reorder_meta = reorder_res['pcl'], reorder_res['meta']
 	print(f"Reorder... Time: {(perf_counter() - start_time) * 1000:.2f}ms")
 

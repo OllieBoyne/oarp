@@ -25,4 +25,6 @@ PCA provides an initial estimate for the rigid transformation between two pointc
 
 Ordering is provided either by ```scipy.optimize.linear_sum_assignment```, or by the Auction Algorithm provided in [sslap](https://github.com/OllieBoyne/sslap). The Auction Algorithm will work faster on larger pointclouds.
 
-To use sslap, simply install it as a module by following the instructions on the repository.
+To install sslap, use pip:
+
+```pip install sslap```
