@@ -7,9 +7,10 @@ from scipy.optimize import linear_sum_assignment  # for reorganising pointclouds
 from itertools import chain
 
 try:
-	from sslap.auction import from_matrix
+	from sslap import auction_solve
 	use_sslap = True
 except ImportError:
+	print("No sslap found, using scipy for ordering.")
 	use_sslap = False
 
 # import Pointcloud for type hinting
@@ -24,8 +25,8 @@ def solve_lap(mat):
 	"""Solve Linear Assignment Problem"""
 	if use_sslap: # use sslap auction algorithm implementation
 		mat[mat == np.inf] = -1
-		solver = from_matrix(mat, problem='min')
-		sol = solver.solve()
+		auction_sol = auction_solve(mat, problem='min')
+		sol = auction_sol['sol']
 	else:
 		R, sol = linear_sum_assignment(cost_matrix=mat)
 
